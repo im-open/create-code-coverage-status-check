@@ -38,6 +38,10 @@ inputs:
     required: false
     default: '0'
 
+outputs:
+  coverage-outcome:
+    description: 'Coverage outcome based on Threshold comparisons: Failed|Passed.  If exceptions are thrown or if it exits early because of argument errors, this is set to Failed.'
+
 runs:
   using: 'node12'
   main: 'dist/index.js'

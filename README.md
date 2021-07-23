@@ -21,7 +21,6 @@ If you have multiple workflows triggered by the same `pull_request` or `push` ev
 This is shown on the pull request when the `create-pr-comment` is set to `true` and there is a PR associated with the commit.
 <kbd><img src="./docs/pull_request_comment.png"></img></kbd>
 
-
 ### Pull Request Status Check
 This is shown on the pull request when the `create-status-check` is set to `true` and there is a PR associated with the commit.
 <kbd><img src="./docs/pull_request_status_check.png"></img></kbd>
@@ -48,6 +47,10 @@ If the `Code Coverage Details` in the Status Check body or PR Comment are expand
 | `line-threshold`            | false       | 0                     | The status check/comment will be marked as a failure if the actual line coverage amount is less than this.  Set to 0 if you do not want thresholds to be applied.   |
 | `branch-threshold`          | false       | 0                     | The status check/comment will be marked as a failure if the actual branch coverage amount is less than this.  Set to 0 if you do not want thresholds to be applied. |
 
+## Outputs
+| Output             | Description                                                                                                                                                                                                                            |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `coverage-outcome` | Coverage outcome based on Threshold comparisons: *Failed,Passed* <br/>If exceptions are thrown or if it exits early because of argument errors, this is set to *Failed*.<br/>If thresholds are set to 0, this will be set to *Passed*. |
 
 ## Example
 
@@ -83,7 +86,7 @@ jobs:
           assemblyfilters: '-xunit*;-Dapper;-MyProj.Tests.Shared;'
           
       - name: Create a status check for the code coverage results
-        if: always()
+        id: coverage-check
         uses: im-open/process-open-cover-results-summary@v1.0.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}     
@@ -95,6 +98,12 @@ jobs:
           ignore-threshold-failures: false              # Default: false
           line-threshold: 99                            # Default: 0, which means thresholds are not applied
           branch-threshold: 98                          # Default: 0, which means thresholds are not applied
+      
+      - name: Fail if there were coverage failures
+        if: steps.coverage-check.outputs.coverage-outcome == 'Failed'
+        run: |
+          echo "There were code coverage threshold failures."
+          exit 1
 ```
 
 ## Recompiling

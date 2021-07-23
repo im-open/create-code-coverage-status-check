@@ -47,12 +47,8 @@ async function createPrComment(markupData) {
 async function createStatusCheck(markupData, checkTime, conclusion) {
   try {
     let git_sha =
-      github.context.eventName === 'pull_request'
-        ? github.context.payload.pull_request.head.sha
-        : github.context.sha;
-    core.info(
-      `Creating status check for GitSha: ${git_sha} on a ${github.context.eventName} event.`
-    );
+      github.context.eventName === 'pull_request' ? github.context.payload.pull_request.head.sha : github.context.sha;
+    core.info(`Creating status check for GitSha: ${git_sha} on a ${github.context.eventName} event.`);
 
     const response = await octokit.rest.checks.create({
       owner,
@@ -171,10 +167,12 @@ async function run() {
       markupData = fs.readFileSync(summaryFile, 'utf8');
       if (!markupData) {
         core.info('The summary file does not contain any data.  No status check will be created');
+        core.setOutput('coverage-outcome', 'Failed');
         return;
       }
     } else {
       core.setFailed(`The summary file '${summaryFile}' does not exist.`);
+      core.setOutput('coverage-outcome', 'Failed');
       return;
     }
 
@@ -190,8 +188,11 @@ async function run() {
     if (shouldCreatePRComment && github.context.eventName == 'pull_request') {
       await createPrComment(modifiedMarkup);
     }
+
+    core.setOutput('coverage-outcome', coverageInfo.statusConclusion == 'failure' ? 'Failed' : 'Passed');
   } catch (error) {
     core.setFailed(`An error occurred processing the summary file: ${error}`);
+    core.setOutput('coverage-outcome', 'Failed');
   }
 }
 
