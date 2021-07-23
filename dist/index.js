@@ -5637,7 +5637,6 @@ function getCoverageInfo(markupData) {
   let info = {
     statusConclusion: 'success',
     line: {
-      hasCoverage: true,
       badge: 'N/A',
       threshold: lineThreshold,
       actualCoverage: 0,
@@ -5645,7 +5644,6 @@ function getCoverageInfo(markupData) {
       regex: /Line coverage: \| ([\d.]*)\%/
     },
     branch: {
-      hasCoverage: true,
       badge: 'N/A',
       threshold: branchThreshold,
       actualCoverage: 0,
@@ -5653,23 +5651,21 @@ function getCoverageInfo(markupData) {
       regex: /Branch coverage: \| ([\d.]*)\%/
     }
   };
+  const lineFound = markupData.match(info.line.regex);
+  info.line.actualCoverage = lineFound && lineFound[1] ? parseInt(lineFound[1]) : 0;
   if (info.line.threshold === 0) {
-    info.line.conclusion('neutral');
-    info.line.hasCoverage(false);
+    info.line.conclusion = 'neutral';
   } else {
-    const lineFound = markupData.match(info.line.regex);
-    info.line.actualCoverage = lineFound && lineFound[1] ? parseInt(lineFound[1]) : 0;
     if (info.line.actualCoverage < info.line.threshold) {
       info.line.conclusion = ignoreFailures ? 'neutral' : 'failure';
     }
     info.line.badge = getBadge(info.line.conclusion);
   }
+  const branchFound = markupData.match(info.branch.regex);
+  info.branch.actualCoverage = branchFound && branchFound[1] ? parseInt(branchFound[1]) : 0;
   if (info.branch.threshold === 0) {
-    info.branch.conclusion('neutral');
-    info.branch.hasCoverage(false);
+    info.branch.conclusion = 'neutral';
   } else {
-    const branchFound = markupData.match(info.branch.regex);
-    info.branch.actualCoverage = branchFound && branchFound[1] ? parseInt(branchFound[1]) : 0;
     if (info.branch.actualCoverage < info.branch.threshold) {
       info.branch.conclusion = ignoreFailures ? 'neutral' : 'failure';
     }
