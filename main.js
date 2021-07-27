@@ -20,7 +20,7 @@ if (!summaryFile || summaryFile.length === 0) {
   core.setFailed('The summary-file argument is required.');
   return;
 }
-if (shouldCreatePRComment && (!ghToken || ghToken.length === 0)) {
+if (!ghToken || ghToken.length === 0) {
   core.setFailed('The github-token argument is required.');
   return;
 }
@@ -53,7 +53,7 @@ async function createStatusCheck(markupData, checkTime, conclusion) {
     const response = await octokit.rest.checks.create({
       owner,
       repo,
-      name: checkName,
+      name: `status check - ${checkName}`,
       head_sha: git_sha,
       status: 'completed',
       conclusion: conclusion,
@@ -160,12 +160,12 @@ async function run() {
     if (fs.existsSync(summaryFile)) {
       markupData = fs.readFileSync(summaryFile, 'utf8');
       if (!markupData) {
-        core.info('The summary file does not contain any data.  No status check will be created');
+        core.info('The summary file does not contain any data.  No status check or pr comment will be created.');
         core.setOutput('coverage-outcome', 'Failed');
         return;
       }
     } else {
-      core.setFailed(`The summary file '${summaryFile}' does not exist.`);
+      core.setFailed(`The summary file '${summaryFile}' does not exist.  No status check or PR comment will be created.`);
       core.setOutput('coverage-outcome', 'Failed');
       return;
     }
