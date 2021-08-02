@@ -2,6 +2,16 @@
 
 This action works in conjunction with [im-open/code-coverage-report-generator].  If a `Summary.md` file is created in the report generator action by including `MarkdownSummary` in the `reporttypes` input, this action will take the contents of that file and create a Status Check or PR Comment depending on the flags set.  This action does not create code coverage reports and it only processes one summary report at a time.
 
+  * [Thresholds](#thresholds)
+  * [Limitations](#limitations)
+  * [Action Outputs](#action-outputs)
+  * [Inputs](#inputs)
+  * [Outputs](#outputs)
+  * [Usage Example](#usage-example)
+  * [Recompiling](#recompiling)
+  * [Code of Conduct](#code-of-conduct)
+  * [License](#license)
+  
 ## Thresholds
 
 The status check can be seen as a new item on the workflow run, a PR comment or on the PR Status Check section. If thresholds for line or branch coverage have been provided and the actual branch or line coverage does not meet or exceed the threshold, the status check will be marked as `failed`.  Having the status check marked as `failed` will prevent PRs from being merged.  If this status check behavior is not desired, the `ignore-threshold-failures` input can be set and the outcome will be marked as `neutral` if threshold failures are detected.  The status badge that is shown in the comment or status check body will still indicate it was a failure though.
@@ -10,7 +20,7 @@ If you want the code coverage to be reported without indicating whether it was a
 
 ## Limitations 
 
-GitHub does have a size limitation of 65535 characters for a Status Check body or a PR Comment.  This action will fail if the contents of the summary file exceed the GitHub limit.
+GitHub does have a size limitation of 65535 characters for a Status Check body or a PR Comment.  This action will fail if the contents of the summary file exceed the GitHub [limit].
 
 If you have multiple workflows triggered by the same `pull_request` or `push` event, GitHub creates one checksuite for that commit.  The checksuite gets assigned to one of the workflows randomly and all status checks for that commit are reported to that checksuite. That means if there are multiple workflows with the same trigger, your status checks may show on a different workflow run than the run that created them.
 
@@ -52,7 +62,7 @@ If the `Code Coverage Details` in the Status Check body or PR Comment are expand
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `coverage-outcome` | Coverage outcome based on Threshold comparisons: *Failed,Passed* <br/>If exceptions are thrown or if it exits early because of argument errors, this is set to *Failed*.<br/>If thresholds are set to 0, this will be set to *Passed*. |
 
-## Example
+## Usage Example
 
 ```yml
 name: CI Build
@@ -87,7 +97,7 @@ jobs:
           
       - name: Create a status check for the code coverage results
         id: coverage-check
-        uses: im-open/process-code-coverage-summary@v1.0.2
+        uses: im-open/process-code-coverage-summary@v1.0.3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}     
           summary-file: './coverage-results/Summary.md'
@@ -130,3 +140,4 @@ This project has adopted the [im-open's Code of Conduct](https://github.com/im-o
 Copyright &copy; 2021, Extend Health, LLC. Code released under the [MIT license](LICENSE).
 
 [im-open/code-coverage-report-generator]: https://github.com/im-open/code-coverage-report-generator
+[limit]: https://github.com/github/docs/issues/3765
