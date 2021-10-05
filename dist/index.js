@@ -5544,41 +5544,82 @@ var require_github = __commonJS({
 var core = require_core();
 var github = require_github();
 var fs = require('fs');
-var ghToken = core.getInput('github-token');
-var summaryFile = core.getInput('summary-file');
+var requiredArgOptions = {
+  required: true,
+  trimWhitespace: true
+};
+var ghToken = core.getInput('github-token', requiredArgOptions);
+var summaryFile = core.getInput('summary-file', requiredArgOptions);
 var reportName = core.getInput('report-name');
 var checkName = core.getInput('check-name');
 var shouldCreateStatusCheck = core.getInput('create-status-check') == 'true';
 var shouldCreatePRComment = core.getInput('create-pr-comment') == 'true';
+var updateCommentIfOneExists = core.getInput('update-comment-if-one-exists') == 'true';
 var ignoreFailures = core.getInput('ignore-threshold-failures') == 'true';
 var lineThreshold = parseInt(core.getInput('line-threshold'));
 var branchThreshold = parseInt(core.getInput('branch-threshold'));
 var octokit = github.getOctokit(ghToken);
 var owner = github.context.repo.owner;
 var repo = github.context.repo.repo;
-if (!summaryFile || summaryFile.length === 0) {
-  core.setFailed('The summary-file argument is required.');
-  return;
+var markupPrefix = '<!-- im-open/process-code-coverage-summary -->';
+async function lookForExistingComment(octokit2) {
+  const commentsResponse = await octokit2.rest.issues.listComments({
+    owner: github.context.repo.owner,
+    repo: github.context.repo.repo,
+    issue_number: github.context.payload.pull_request.number
+  });
+  if (commentsResponse.status !== 200) {
+    core.info(`Failed to list PR comments. Error code: ${commentsResponse.status}.  Will create new comment instead.`);
+    return null;
+  }
+  const existingComment = commentsResponse.data.find(c => c.body.startsWith(markupPrefix));
+  if (!existingComment) {
+    core.info('An existing code coverage summary comment was not found, creating a new one instead.');
+  }
+  return existingComment ? existingComment.id : null;
 }
-if (!ghToken || ghToken.length === 0) {
-  core.setFailed('The github-token argument is required.');
-  return;
-}
-async function createPrComment(markupData) {
+async function createPrComment(markupData, updateCommentIfOneExists2) {
   try {
-    const response = await octokit.rest.issues.createComment({
-      owner,
-      repo,
-      issue_number: github.context.payload.pull_request.number,
-      body: markupData
-    });
-    if (response.status !== 201) {
-      core.setFailed(`Failed to create PR comment. Error code: ${response.status}`);
+    if (github.context.eventName != 'pull_request') {
+      core.info('This event was not triggered by a pull_request.  No comment will be created or updated.');
+      return;
+    }
+    let existingCommentId = null;
+    if (updateCommentIfOneExists2) {
+      core.info('Checking for existing comment on PR....');
+      existingCommentId = await lookForExistingComment(octokit);
+    }
+    let response;
+    let success;
+    if (existingCommentId) {
+      core.info(`Updating existing PR #${existingCommentId} comment...`);
+      response = await octokit.rest.issues.updateComment({
+        owner,
+        repo,
+        body: `${markupPrefix}
+${markupData}`,
+        comment_id: existingCommentId
+      });
+      success = response.status === 200;
     } else {
-      core.info(`Created PR comment: ${response.data.id} with response status ${response.status}`);
+      core.info(`Creating a new PR comment...`);
+      response = await octokit.rest.issues.createComment({
+        owner,
+        repo,
+        body: `${markupPrefix}
+${markupData}`,
+        issue_number: github.context.payload.pull_request.number
+      });
+      success = response.status === 201;
+    }
+    let action = existingCommentId ? 'create' : 'update';
+    if (success) {
+      core.info(`PR comment was ${action}d.  ID: ${response.data.id}.`);
+    } else {
+      core.setFailed(`Failed to ${action} PR comment. Error code: ${response.status}.`);
     }
   } catch (error) {
-    core.setFailed(`An error occurred trying to create the PR comment: ${error}`);
+    core.setFailed(`An error occurred trying to create or update the PR comment: ${error}`);
   }
 }
 async function createStatusCheck(markupData, checkTime, conclusion) {
@@ -5701,7 +5742,7 @@ async function run() {
       await createStatusCheck(modifiedMarkup, checkTime, coverageInfo.statusConclusion);
     }
     if (shouldCreatePRComment && github.context.eventName == 'pull_request') {
-      await createPrComment(modifiedMarkup);
+      await createPrComment(modifiedMarkup, updateCommentIfOneExists);
     }
     core.setOutput('coverage-outcome', coverageInfo.statusConclusion == 'failure' ? 'Failed' : 'Passed');
   } catch (error) {
