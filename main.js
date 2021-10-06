@@ -77,7 +77,7 @@ async function createPrComment(markupData, updateCommentIfOneExists) {
       success = response.status === 201;
     }
 
-    let action = existingCommentId ? 'create' : 'update';
+    const action = existingCommentId ? 'create' : 'update';
     if (success) {
       core.info(`PR comment was ${action}d.  ID: ${response.data.id}.`);
     } else {
