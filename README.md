@@ -2,15 +2,23 @@
 
 This action works in conjunction with [im-open/code-coverage-report-generator].  If a `Summary.md` file is created in the report generator action by including `MarkdownSummary` in the `reporttypes` input, this action will take the contents of that file and create a Status Check or PR Comment depending on the flags set.  This action does not create code coverage reports and it only processes one summary report at a time.
 
-  * [Thresholds](#thresholds)
-  * [Limitations](#limitations)
-  * [Action Outputs](#action-outputs)
-  * [Inputs](#inputs)
-  * [Outputs](#outputs)
-  * [Usage Example](#usage-example)
-  * [Recompiling](#recompiling)
-  * [Code of Conduct](#code-of-conduct)
-  * [License](#license)
+## Index
+
+- [Thresholds](#thresholds)
+- [Limitations](#limitations)
+- [Action Outputs](#action-outputs)
+  - [Pull Request Comment](#pull-request-comment)
+  - [Pull Request Status Check](#pull-request-status-check)
+  - [Workflow Run](#workflow-run)
+  - [Code Coverage Details](#code-coverage-details)
+- [Inputs](#inputs)
+- [Outputs](#outputs)
+- [Usage Example](#usage-example)
+- [Contributing](#contributing)
+  - [Recompiling](#recompiling)
+  - [Incrementing the Version](#incrementing-the-version)
+- [Code of Conduct](#code-of-conduct)
+- [License](#license)
   
 ## Thresholds
 
@@ -89,7 +97,7 @@ jobs:
         run: dotnet test './src/MyProj.sln' --logger trx --configuration Release /property:CollectCoverage=True /property:CoverletOutputFormat=opencover 
 
       - name: ReportGenerator
-        uses: im-open/code-coverage-report-generator@4.8.12
+        uses: im-open/code-coverage-report-generator@4.8.14
         with:
           reports: '*/**/coverage.opencover.xml'
           targetdir: './coverage-results'
@@ -98,7 +106,7 @@ jobs:
           
       - name: Create a status check for the code coverage results
         id: coverage-check
-        uses: im-open/process-code-coverage-summary@v2.0.1
+        uses: im-open/process-code-coverage-summary@v2.0.2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}     
           summary-file: './coverage-results/Summary.md'
@@ -118,7 +126,15 @@ jobs:
           exit 1
 ```
 
-## Recompiling
+## Contributing
+
+When creating new PRs please ensure:
+1. The action has been recompiled.  See the [Recompiling](#recompiling) section below for more details.
+2. For major or minor changes, at least one of the commit messages contains the appropriate `+semver:` keywords listed under [Incrementing the Version](#incrementing-the-version).
+3. The `README.md` example has been updated with the new version.  See [Incrementing the Version](#incrementing-the-version).
+4. The action code does not contain sensitive information.
+
+### Recompiling
 
 If changes are made to the action's code in this repository, or its dependencies, you will need to re-compile the action.
 
@@ -133,7 +149,7 @@ npm run bundle
 These commands utilize [esbuild](https://esbuild.github.io/getting-started/#bundling-for-node) to bundle the action and
 its dependencies into a single file located in the `dist` folder.
 
-## Incrementing the Version
+### Incrementing the Version
 
 This action uses [git-version-lite] to examine commit messages to determine whether to perform a major, minor or patch increment on merge.  The following table provides the fragment that should be included in a commit message to active different increment strategies.
 | Increment Type | Commit Message Fragment                     |
