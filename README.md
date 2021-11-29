@@ -106,7 +106,7 @@ jobs:
           
       - name: Create a status check for the code coverage results
         id: coverage-check
-        uses: im-open/process-code-coverage-summary@v2.0.2
+        uses: im-open/process-code-coverage-summary@v2.0.3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}     
           summary-file: './coverage-results/Summary.md'
