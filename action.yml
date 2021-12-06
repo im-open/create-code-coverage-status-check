@@ -29,6 +29,13 @@ inputs:
     description: 'When `create-pr-comment` is true, this flag determines whether a new comment is created or if the action updates an existing comment if one is found which is the default behavior.'
     required: true
     default: 'true'
+  update-comment-key:
+    description: |
+      A simple alphanumeric string like *dotnet* or *jest* used to further identify the PR comment to update when this action is used more than once in a workflow.  
+      Only used when `update-comment-if-one-exists` is set to true.  
+      Each instance of the action should have a different key.
+      This value should be static so it remains the same each time the workflow is run.
+    required: false
   ignore-threshold-failures:
     description: 'When set to true the check status is set to Neutral when the code coverage percentage is below the specified threshold and it will not block pull requests.'
     required: false

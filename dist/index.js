@@ -5555,13 +5555,18 @@ var checkName = core.getInput('check-name');
 var shouldCreateStatusCheck = core.getInput('create-status-check') == 'true';
 var shouldCreatePRComment = core.getInput('create-pr-comment') == 'true';
 var updateCommentIfOneExists = core.getInput('update-comment-if-one-exists') == 'true';
+var updateCommentKey = core.getInput('update-comment-key') || '';
 var ignoreFailures = core.getInput('ignore-threshold-failures') == 'true';
 var lineThreshold = parseInt(core.getInput('line-threshold'));
 var branchThreshold = parseInt(core.getInput('branch-threshold'));
 var octokit = github.getOctokit(ghToken);
 var owner = github.context.repo.owner;
 var repo = github.context.repo.repo;
-var markupPrefix = '<!-- im-open/process-code-coverage-summary -->';
+var commentKey = '';
+if (updateCommentKey && updateCommentKey.trim().length > 0) {
+  commentKey = `-${updateCommentKey.trim().replace(/[^a-zA-Z0-9]/g, '')}`;
+}
+var markupPrefix = `<!-- im-open/process-code-coverage-summary${commentKey} -->`;
 async function lookForExistingComment(octokit2) {
   let hasMoreComments = true;
   let page = 1;
@@ -5583,7 +5588,7 @@ async function lookForExistingComment(octokit2) {
         }
         const existingComment = commentsResponse.data.find(c => c.body.startsWith(markupPrefix));
         if (existingComment) {
-          core.info(`An existing code coverage summary comment (${existingComment.id}) was found and will be udpated.`);
+          core.info(`An existing code coverage summary comment (${existingComment.id}) was found and will be updated.`);
           return existingComment.id;
         }
       }
