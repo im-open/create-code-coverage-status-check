@@ -14,6 +14,7 @@ const checkName = core.getInput('check-name');
 const shouldCreateStatusCheck = core.getInput('create-status-check') == 'true';
 const shouldCreatePRComment = core.getInput('create-pr-comment') == 'true';
 const updateCommentIfOneExists = core.getInput('update-comment-if-one-exists') == 'true';
+const updateCommentKey = core.getInput('update-comment-key') || '';
 const ignoreFailures = core.getInput('ignore-threshold-failures') == 'true';
 const lineThreshold = parseInt(core.getInput('line-threshold'));
 const branchThreshold = parseInt(core.getInput('branch-threshold'));
@@ -21,7 +22,12 @@ const branchThreshold = parseInt(core.getInput('branch-threshold'));
 const octokit = github.getOctokit(ghToken);
 const owner = github.context.repo.owner;
 const repo = github.context.repo.repo;
-const markupPrefix = '<!-- im-open/process-code-coverage-summary -->';
+
+let commentKey = '';
+if (updateCommentKey && updateCommentKey.trim().length > 0) {
+  commentKey = `-${updateCommentKey.trim().replace(/[^a-zA-Z0-9]/g, '')}`;
+}
+const markupPrefix = `<!-- im-open/process-code-coverage-summary${commentKey} -->`;
 
 async function lookForExistingComment(octokit) {
   let hasMoreComments = true;
@@ -47,7 +53,7 @@ async function lookForExistingComment(octokit) {
 
         const existingComment = commentsResponse.data.find(c => c.body.startsWith(markupPrefix));
         if (existingComment) {
-          core.info(`An existing code coverage summary comment (${existingComment.id}) was found and will be udpated.`);
+          core.info(`An existing code coverage summary comment (${existingComment.id}) was found and will be updated.`);
           return existingComment.id;
         }
       }
