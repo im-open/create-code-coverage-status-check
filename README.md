@@ -86,7 +86,7 @@ jobs:
     runs-on: [ubuntu-20.04]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       # dotnet tests
       - name: Setup .NET Core
@@ -99,7 +99,7 @@ jobs:
         run: dotnet test './src/MyProj.sln' --logger trx --configuration Release /property:CollectCoverage=True /property:CoverletOutputFormat=opencover 
 
       - name: ReportGenerator
-        uses: im-open/code-coverage-report-generator@4.8.14
+        uses: im-open/code-coverage-report-generator@4.9.0
         with:
           reports: '*/**/coverage.opencover.xml'
           targetdir: './coverage-results'
@@ -109,7 +109,7 @@ jobs:
           
       - name: Create a status check for the code coverage results
         id: dotnet-coverage-check
-        uses: im-open/process-code-coverage-summary@v2.1.3
+        uses: im-open/process-code-coverage-summary@v2.2.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}     
           summary-file: './coverage-results/dotnet-summary.md'
@@ -130,7 +130,7 @@ jobs:
         run: npm run test -- --outputFile=jest-results.json
 
       - name: create code coverage report
-        uses: im-open/code-coverage-report-generator@4.8.14
+        uses: im-open/code-coverage-report-generator@4.9.0
         with:
           reports: '*/**/lcov.info'
           targetdir: ./tests
@@ -138,7 +138,7 @@ jobs:
 
       - name: create status check/comment for code coverage results
         id: jest_coverage_check
-        uses: im-open/process-code-coverage-summary@v2.1.3
+        uses: im-open/process-code-coverage-summary@v2.2.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           summary-file: './coverage-results/jest-summary.md'
