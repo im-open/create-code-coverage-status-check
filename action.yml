@@ -1,6 +1,5 @@
-name: 'process-code-coverage-summary'
-
-description: 'GitHub Action that can create a status check or PR comment based on the provided results summary file.'
+name: process-code-coverage-summary
+description: GitHub Action that can create a status check or PR comment based on the provided results summary file.
 
 inputs:
   github-token:
