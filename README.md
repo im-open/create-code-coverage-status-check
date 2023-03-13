@@ -99,7 +99,7 @@ jobs:
         run: dotnet test './src/MyProj.sln' --logger trx --configuration Release /property:CollectCoverage=True /property:CoverletOutputFormat=opencover 
 
       - name: ReportGenerator
-        uses: im-open/code-coverage-report-generator@4.9.0
+        uses: im-open/code-coverage-report-generator@4
         with:
           reports: '*/**/coverage.opencover.xml'
           targetdir: './coverage-results'
@@ -109,7 +109,8 @@ jobs:
           
       - name: Create a status check for the code coverage results
         id: dotnet-coverage-check
-        uses: im-open/process-code-coverage-summary@v2.2.2
+        # You may also reference just the major or major.minor version
+        uses: im-open/process-code-coverage-summary@v2.2.3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}     
           summary-file: './coverage-results/dotnet-summary.md'
@@ -138,7 +139,7 @@ jobs:
 
       - name: create status check/comment for code coverage results
         id: jest_coverage_check
-        uses: im-open/process-code-coverage-summary@v2.2.2
+        uses: im-open/process-code-coverage-summary@v2.2.3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           summary-file: './coverage-results/jest-summary.md'
