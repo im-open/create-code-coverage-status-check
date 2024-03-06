@@ -24,11 +24,7 @@ on:
 env:
   EMPTY_SUMMARY_INPUT_FILE: './test/input-files/empty.md'
   COVERAGE_SUMMARY_INPUT_FILE: './test/input-files/coverage-summary.md'
-  
-  # FAILING_SUMMARY_INPUT_FILE: './test/input-files/failing.md'
-  # NO_TESTS_SUMMARY_INPUT_FILE: './test/input-files/no-coverage.md'
-  
-  # TRUNCATE_SUMMARY_INPUT_FILE: './test/input-files/truncate.md'
+  TRUNCATE_SUMMARY_INPUT_FILE: './test/input-files/truncate.md'
 
 jobs:
   build-and-review-pr:
@@ -477,7 +473,7 @@ jobs:
       IGNORE_FAILURES_REPORT_NAME: 'Ignore Threshold Failures Scenario'
       ALLOW_FAILURES_REPORT_NAME: 'Allow Failures Failures Scenario'
       THRESHOLD_0_REPORT_NAME: 'Threshold 0 Scenario'
-      
+
       NO_FAILURES_CHECK_NAME: 'no-failures-check'
       IGNORE_FAILURES_CHECK_NAME: 'ignore-failures-check'
       ALLOW_FAILURES_CHECK_NAME: 'allow-failures-check'
@@ -660,7 +656,7 @@ jobs:
               text: expectedBody
             };
             assertStatusCheckMatchesExpectations(core, actualCheck, expectedValues);
-      
+
       - name: '-------------------------------------------------------------------------------------------------------------'
         run: echo ""
       - name: '                                TEST 13 - STATUS CHECK - THRESHOLDS SET TO 0                                 '
@@ -729,6 +725,314 @@ jobs:
             const updateFailingStatusCheck = require('./test/update-failing-status-check.js');
 
             await updateFailingStatusCheck(github, context, core, '${{ steps.allow-failures.outputs.status-check-id }}');
+
+      - name: '-------------------------------------------------------------------------------------------------------------'
+        run: echo ""
+
+  test-pr-comments:
+    runs-on: ubuntu-latest
+    env:
+      EXISTING_COMMENT_ID: ''
+      UPDATE_COMMENT_KEY: 'existing-comment-${{ github.run_id }}'
+
+      UPDATE_WITH_MATCHING_PREFIX_MD_FILE: './test/expected-markdown/pr-comments/update-matching-prefix.md'
+      UPDATE_WITHOUT_MATCHING_PREFIX_MD_FILE: './test/expected-markdown/pr-comments/update-without-matching-prefix.md'
+      NO_UPDATE_MD_FILE: './test/expected-markdown/pr-comments/no-update.md'
+      TRUNCATE_FULL_MD_FILE: './test/expected-markdown/pr-comments/truncate-full-markdown.md'
+      TRUNCATE_TRUNCATED_MD_FILE: './test/expected-markdown/pr-comments/truncate-truncated-markdown.md'
+
+      UPDATE_WITH_MATCHING_PREFIX_REPORT_NAME: 'Update Comment with Matching Prefix Scenario'
+      UPDATE_WITHOUT_MATCHING_PREFIX_REPORT_NAME: 'Update Comment but no Matching Prefix Scenario'
+      NO_UPDATE_REPORT_NAME: 'Do Not Update Comment Scenario'
+      TRUNCATE_FAILURES_REPORT_NAME: 'Truncated PR Comment Scenario'
+
+    steps:
+      - name: '-------------------------------------------------------------------------------------------------------------'
+        run: echo ""
+      - name: '                                                    SETUP                                                    '
+        run: echo ""
+
+      - name: Setup - Fail test job if fork
+        run: |
+          if [ "${{ github.event.pull_request.head.repo.fork }}" == "true" ]; then
+            echo "This test job requires the `pull_request: write` scope on the GITHUB_TOKEN which PRs from forks do not have.  Before this PR can be merged, the tests should be run on an intermediate branch created by repository owners."
+            exit 1
+          fi
+
+      - name: Setup - Checkout the action
+        uses: actions/checkout@v4
+
+      - name: Setup - Delete pre-existing process-code-coverage-summary PR Comments
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const deletePrComments = require('./test/delete-pre-existing-comments.js');
+            await deletePrComments(github, context, core);
+
+      - name: Setup - Create a process-code-coverage-summary comment that can be updated
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `<!-- im-open/process-code-coverage-summary ${{ env.UPDATE_COMMENT_KEY }} -->\nThis comment will be replaced soon.`
+            })
+            .then(response => {
+              core.info(`The 'existing' process-code-coverage-summary comment has id: ${response.data.id}`);
+              core.exportVariable('EXISTING_COMMENT_ID', response.data.id);
+            })
+            .catch(error => {
+              core.setFailed(`An error occurred in the setup step while creating a comment: ${error.message}`);
+            });
+            await new Promise(r => setTimeout(r, 5 * 1000));
+
+      - name: '-------------------------------------------------------------------------------------------------------------'
+        run: echo ""
+      - name: '                              TEST 14 - PR COMMENT - UPDATE W/ MATCHING PREFIX                               '
+        run: echo ""
+
+      - name: 14a - When process-code-coverage-summary is called with updateComment=true and there is a comment with matching prefix
+        if: always()
+        id: update-with-matching-prefix
+        uses: ./
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          summary-file: ${{ env.COVERAGE_SUMMARY_INPUT_FILE }}
+          report-name: ${{ env.UPDATE_WITH_MATCHING_PREFIX_REPORT_NAME }}
+          create-status-check: false
+          create-pr-comment: true
+          update-comment-if-one-exists: true
+          update-comment-key: ${{ env.UPDATE_COMMENT_KEY }}
+          line-threshold: 50 # The actual coverage is 94.4
+          branch-threshold: 50 # The actual coverage is 93.8
+          ignore-threshold-failures: false
+
+      - name: 14b - Then the action outcome should be success
+        if: always()
+        run: ./test/assert-values-match.sh --name "step outcome" --expected "success" --actual "${{ steps.update-with-matching-prefix.outcome }}"
+
+      - name: 14c - And the pr-comment-id output should match the existing comment id
+        if: always()
+        run: ./test/assert-values-match.sh --name "pr-comment-id output" --expected "${{ env.EXISTING_COMMENT_ID }}" --actual "${{ steps.update-with-matching-prefix.outputs.pr-comment-id }}"
+
+      - name: 14d - And the coverage-results-truncated output should be false
+        if: always()
+        run: ./test/assert-values-match.sh --name "coverage-results-truncated output" --expected "false" --actual "${{ steps.update-with-matching-prefix.outputs.coverage-results-truncated }}"
+
+      - name: 14e - And the pr-comment should match the match the expected values
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const assertCommentExists = require('./test/assert-pr-comment-exists.js');
+            const assertCommentMatchesExpectations = require('./test/assert-pr-comment-matches-expectations.js');
+
+            const commentId = '${{ steps.update-with-matching-prefix.outputs.pr-comment-id }}';
+            const actualComment = await assertCommentExists(github, context, core, commentId);
+
+            const expectedMarkdown = fs.readFileSync('${{ env.UPDATE_WITH_MATCHING_PREFIX_MD_FILE }}', 'utf8');
+            const actualTestResults = fs.readFileSync('${{ steps.update-with-matching-prefix.outputs.coverage-results-file-path }}', 'utf8');
+
+            const expectedComment = {
+              prefix: '<!-- im-open/process-code-coverage-summary ${{ env.UPDATE_COMMENT_KEY }} -->',
+              fullMarkdown: expectedMarkdown,
+              action: 'updated',
+              truncated: false
+            };
+            assertCommentMatchesExpectations(core, actualComment, actualTestResults, expectedComment);
+
+      - name: '-------------------------------------------------------------------------------------------------------------'
+        run: echo ""
+      - name: '                              TEST 15 - PR COMMENT - UPDATE W/O MATCHING PREFIX                              '
+        run: echo ""
+
+      - name: 15a - When process-code-coverage-summary is called with updateComment=true but there is no comment with matching prefix
+        if: always()
+        id: update-without-matching-prefix
+        uses: ./
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          summary-file: ${{ env.COVERAGE_SUMMARY_INPUT_FILE }}
+          report-name: ${{ env.UPDATE_WITHOUT_MATCHING_PREFIX_REPORT_NAME }}
+          create-status-check: false
+          create-pr-comment: true
+          update-comment-if-one-exists: true
+          update-comment-key: 'different-identifier-${{ github.run_id }}'
+          line-threshold: 50 # The actual coverage is 94.4
+          branch-threshold: 50 # The actual coverage is 93.8
+          ignore-threshold-failures: false
+
+      - name: 15b - Then the action outcome should be success
+        if: always()
+        run: ./test/assert-values-match.sh --name "step outcome" --expected "success" --actual "${{ steps.update-without-matching-prefix.outcome }}"
+
+      - name: 15c - And the pr-comment-id output should be different than the existing comment id
+        if: always()
+        run: ./test/assert-values-do-not-match.sh --name "pr-comment-id output" --value1 "${{ env.EXISTING_COMMENT_ID }}" --value2 "${{ steps.update-without-matching-prefix.outputs.pr-comment-id }}"
+
+      - name: 15d - And the coverage-results-truncated output should be false
+        if: always()
+        run: ./test/assert-values-match.sh --name "coverage-results-truncated output" --expected "false" --actual "${{ steps.update-without-matching-prefix.outputs.coverage-results-truncated }}"
+
+      - name: 15e - And the pr-comment should match the expected values
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const assertCommentExists = require('./test/assert-pr-comment-exists.js');
+            const assertCommentMatchesExpectations = require('./test/assert-pr-comment-matches-expectations.js');
+
+            const commentId = '${{ steps.update-without-matching-prefix.outputs.pr-comment-id }}';
+            const actualComment = await assertCommentExists(github, context, core, commentId);
+
+            const expectedMarkdown = fs.readFileSync('${{ env.UPDATE_WITHOUT_MATCHING_PREFIX_MD_FILE }}', 'utf8');
+            const actualTestResults = fs.readFileSync('${{ steps.update-without-matching-prefix.outputs.coverage-results-file-path }}', 'utf8');
+
+            const expectedComment = {
+              prefix: '<!-- im-open/process-code-coverage-summary different-identifier-${{ github.run_id }} -->',
+              fullMarkdown: expectedMarkdown,
+              action: 'created',
+              truncated: false
+            };
+            assertCommentMatchesExpectations(core, actualComment, actualTestResults, expectedComment);
+
+      - name: '-------------------------------------------------------------------------------------------------------------'
+        run: echo ""
+      - name: '                                       TEST 16 - PR COMMENT - NO UPDATE                                      '
+        run: echo ""
+
+      - name: 16a - When process-code-coverage-summary is called with updateComment=false
+        if: always()
+        id: matching-prefix-no-update
+        uses: ./
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          summary-file: ${{ env.COVERAGE_SUMMARY_INPUT_FILE }}
+          report-name: ${{ env.NO_UPDATE_REPORT_NAME }}
+          create-status-check: false
+          create-pr-comment: true
+          update-comment-if-one-exists: false
+          # update-comment-key  - Test the default Job-Step
+          line-threshold: 50 # The actual coverage is 94.4
+          branch-threshold: 50 # The actual coverage is 93.8
+          ignore-threshold-failures: false
+
+      - name: 16b - Then the action outcome should be success
+        if: always()
+        run: ./test/assert-values-match.sh --name "step outcome" --expected "success" --actual "${{ steps.matching-prefix-no-update.outcome }}"
+
+      - name: 16c - And the pr-comment-id output should be different than the existing comment id
+        if: always()
+        run: ./test/assert-values-do-not-match.sh --name "pr-comment-id output" --value1 "${{ env.EXISTING_COMMENT_ID }}" --value2 "${{ steps.matching-prefix-no-update.outputs.pr-comment-id }}"
+
+      - name: 16d - And the coverage-results-truncated output should be false
+        if: always()
+        run: ./test/assert-values-match.sh --name "coverage-results-truncated output" --expected "false" --actual "${{ steps.matching-prefix-no-update.outputs.coverage-results-truncated }}"
+
+      - name: 16e - And the pr-comment should match the expected values
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const assertCommentExists = require('./test/assert-pr-comment-exists.js');
+            const assertCommentMatchesExpectations = require('./test/assert-pr-comment-matches-expectations.js');
+
+            const commentId = '${{ steps.matching-prefix-no-update.outputs.pr-comment-id }}';
+            const actualComment = await assertCommentExists(github, context, core, commentId);
+
+            const expectedMarkdown = fs.readFileSync('${{ env.NO_UPDATE_MD_FILE }}', 'utf8');
+            const actualTestResults = fs.readFileSync('${{ steps.matching-prefix-no-update.outputs.coverage-results-file-path }}', 'utf8');
+
+            const expectedComment = {
+              prefix: `<!-- im-open/process-code-coverage-summary test-pr-comments_matching-prefix-no-update -->`,
+              fullMarkdown: expectedMarkdown,
+              action: 'created',
+              truncated: false
+            };
+            assertCommentMatchesExpectations(core, actualComment, actualTestResults, expectedComment);
+
+      - name: '-------------------------------------------------------------------------------------------------------------'
+        run: echo ""
+      - name: '                                       TEST 17 - PR COMMENT - TRUNCATE                                       '
+        run: echo ""
+
+      - name: 17a - When process-code-coverage-summary is called with a large comment that needs to be truncated
+        if: always()
+        id: truncate
+        uses: ./
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          summary-file: ${{ env.TRUNCATE_SUMMARY_INPUT_FILE }}
+          report-name: ${{ env.TRUNCATE_FAILURES_REPORT_NAME }}
+          create-status-check: false
+          create-pr-comment: true
+          update-comment-if-one-exists: true
+          update-comment-key: ${{ env.UPDATE_COMMENT_KEY }}
+          line-threshold: 50 # The actual coverage is 94.4
+          branch-threshold: 50 # The actual coverage is 93.8
+          ignore-threshold-failures: false
+
+      - name: 17b - Then the action outcome should be success
+        if: always()
+        run: ./test/assert-values-match.sh --name "step outcome" --expected "success" --actual "${{ steps.truncate.outcome }}"
+
+      - name: 17c - And the pr-comment-id output should match the existing comment id
+        if: always()
+        run: ./test/assert-values-match.sh --name "pr-comment-id output" --expected "${{ env.EXISTING_COMMENT_ID }}" --actual "${{ steps.truncate.outputs.pr-comment-id }}"
+
+      - name: 17d - And the coverage-results-truncated output should be true
+        if: always()
+        run: ./test/assert-values-match.sh --name "coverage-results-truncated output" --expected "true" --actual "${{ steps.truncate.outputs.coverage-results-truncated }}"
+
+      - name: 17e - And the pr-comment should match the expected values
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const assertCommentExists = require('./test/assert-pr-comment-exists.js');
+            const assertCommentMatchesExpectations = require('./test/assert-pr-comment-matches-expectations.js');
+
+            const commentId = '${{ steps.truncate.outputs.pr-comment-id }}';
+            const actualComment = await assertCommentExists(github, context, core, commentId);
+
+            const expectedMarkdown = fs.readFileSync('${{ env.TRUNCATE_FULL_MD_FILE }}', 'utf8');
+            const expectedTruncatedMarkdown = fs.readFileSync('${{ env.TRUNCATE_TRUNCATED_MD_FILE }}', 'utf8');
+            const actualTestResults = fs.readFileSync('${{ steps.truncate.outputs.coverage-results-file-path }}', 'utf8');
+            const truncateMessage = 'Test results truncated due to character limit. See full report in output.';
+
+            const expectedComment = {
+              prefix: `<!-- im-open/process-code-coverage-summary ${{ env.UPDATE_COMMENT_KEY }} -->`,
+              fullMarkdown: expectedMarkdown,
+              action: 'updated',
+              truncated: true,
+              truncatedMarkdown: expectedTruncatedMarkdown,
+            };
+            assertCommentMatchesExpectations(core, actualComment, actualTestResults, expectedComment);
+
+      - name: '-------------------------------------------------------------------------------------------------------------'
+        run: echo ""
+      - name: '                                                   TEARDOWN                                                  '
+        run: echo ""
+
+      - name: Teardown - Delete PR Comments
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const deletePrComment = require('./test/delete-pr-comment.js');
+
+            await deletePrComment(github, context, core, '${{ env.EXISTING_COMMENT_ID }}');
+            await deletePrComment(github, context, core, '${{ steps.matching-prefix-no-update.outputs.pr-comment-id }}');
+            await deletePrComment(github, context, core, '${{ steps.update-without-matching-prefix.outputs.pr-comment-id }}');
 
       - name: '-------------------------------------------------------------------------------------------------------------'
         run: echo ""
