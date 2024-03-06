@@ -1,6 +1,7 @@
 const core = require('@actions/core');
 const github = require('@actions/github');
 const fs = require('fs');
+const path = require('path');
 
 const requiredArgOptions = {
   required: true,
@@ -185,20 +186,21 @@ function getMarkdownFromSummary(summaryInputData, reportName, coverageInfo) {
   const line = coverageInfo.line;
   const branch = coverageInfo.branch;
 
-  const markdown = `# ${reportName}    
+  const markdown = `# ${reportName}
 
 | Coverage Type | Threshold            | Actual Coverage           |  Status         |
 |-------------- |----------------------|---------------------------|-----------------|
 | Line          | ${line.threshold}%   | ${line.actualCoverage}%   | ${line.badge}   |
 | Branch        | ${branch.threshold}% | ${branch.actualCoverage}% | ${branch.badge} |
 
-### Code Coverage Summary
+## Code Coverage Summary
 
 <details>
 <summary>Code Coverage Details</summary>
 
 ${markdownDetails.trim()}
-</details>`.trim();
+</details>
+`;
   return markdown;
 }
 

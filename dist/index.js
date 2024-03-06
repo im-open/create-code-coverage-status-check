@@ -16592,6 +16592,7 @@ var require_github = __commonJS({
 var core = require_core();
 var github = require_github();
 var fs = require('fs');
+var path = require('path');
 var requiredArgOptions = {
   required: true,
   trimWhitespace: true
@@ -16756,20 +16757,21 @@ function getMarkdownFromSummary(summaryInputData, reportName2, coverageInfo) {
   const markdownDetails = summaryInputData.replace(regex, '');
   const line = coverageInfo.line;
   const branch = coverageInfo.branch;
-  const markdown = `# ${reportName2}    
+  const markdown = `# ${reportName2}
 
 | Coverage Type | Threshold            | Actual Coverage           |  Status         |
 |-------------- |----------------------|---------------------------|-----------------|
 | Line          | ${line.threshold}%   | ${line.actualCoverage}%   | ${line.badge}   |
 | Branch        | ${branch.threshold}% | ${branch.actualCoverage}% | ${branch.badge} |
 
-### Code Coverage Summary
+## Code Coverage Summary
 
 <details>
 <summary>Code Coverage Details</summary>
 
 ${markdownDetails.trim()}
-</details>`.trim();
+</details>
+`;
   return markdown;
 }
 function getIndividualCoverageInfo(summaryInputData, coverageType, threshold, ignoreFailures2) {

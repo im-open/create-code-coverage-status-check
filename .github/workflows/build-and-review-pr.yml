@@ -21,6 +21,10 @@ on:
   #   without disabling that requirement.  If we have a status check that is always produced,
   #   we can also use that to require all branches be up to date before they are merged.
 
+env:
+  EMPTY_SUMMARY_INPUT_FILE: './test/input-files/empty.md'
+  COVERAGE_SUMMARY_INPUT_FILE: './test/input-files/coverage-summary.md'
+
 jobs:
   build-and-review-pr:
     # This reusable workflow will check to see if an action's source code has changed based on
@@ -60,3 +64,398 @@ jobs:
       # The npm script to run to build the action.  This is typically 'npm run build' if the
       # action needs to be compiled.  For composite-run-steps actions this is typically empty.
       build-command: 'npm run build'
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    env:
+      PASSING_THRESHOLDS_MD_FILE: './test/expected-markdown/unit-tests/passing-thresholds.md'
+      FAILING_LINE_MD_FILE: './test/expected-markdown/unit-tests/failing-line.md'
+      FAILING_BRANCH_MD_FILE: './test/expected-markdown/unit-tests/failing-branch.md'
+      IGNORE_THRESHOLDS_MD_FILE: './test/expected-markdown/unit-tests/ignore-thresholds.md'
+      THRESHOLD_0_MD_FILE: './test/expected-markdown/unit-tests/threshold-0.md'
+      
+    steps:
+      - name: '-------------------------------------------------------------------------------------------------------------'
+        run: echo ""
+      - name: '                                                    SETUP                                                    '
+        run: echo ""
+
+      - name: Setup - Checkout the action
+        uses: actions/checkout@v4
+
+      - name: '-------------------------------------------------------------------------------------------------------------'
+        run: echo ""
+      - name: '                                         TEST 1 - MISSING TOKEN INPUT                                        '
+        run: echo ""
+
+      - name: 1a - When process-code-coverage-summary is called with a missing github-token input
+        id: missing-github-token
+        if: always()
+        continue-on-error: true # This is needed because we expect the step to fail but we need it to "pass" in order for the test job to succeed.
+        uses: ./
+        with:
+          github-token: ''
+          summary-file: '${{ env.EMPTY_SUMMARY_INPUT_FILE }}'
+
+      - name: 1b - Then the action outcome should be failure
+        if: always()
+        run: ./test/assert-values-match.sh --name "step outcome" --expected "failure" --actual "${{ steps.missing-github-token.outcome }}"
+
+      - name: 1c - And each of the outputs should be empty
+        if: always()
+        run: |
+          ./test/assert-value-is-empty.sh --name "coverage-outcome output" --value "${{ steps.missing-github-token.outputs.coverage-outcome }}"
+          ./test/assert-value-is-empty.sh --name "coverage-results-truncated output" --value "${{ steps.missing-github-token.outputs.coverage-results-truncated }}"
+          ./test/assert-value-is-empty.sh --name "coverage-results-file-path output" --value "${{ steps.missing-github-token.outputs.coverage-results-file-path }}"
+          ./test/assert-value-is-empty.sh --name "status-check-id output" --value "${{ steps.missing-github-token.outputs.status-check-id }}"
+          ./test/assert-value-is-empty.sh --name "pr-comment-id output" --value "${{ steps.missing-github-token.outputs.pr-comment-id }}"
+
+      - name: '-------------------------------------------------------------------------------------------------------------'
+        run: echo ""
+      - name: '                                     TEST 2 - MISSING SUMMARY_FILE INPUT                                     '
+        run: echo ""
+
+      - name: 2a - When process-code-coverage-summary is called with a missing summary-file input
+        id: missing-summary-file
+        if: always()
+        continue-on-error: true # This is needed because we expect the step to fail but we need it to "pass" in order for the test job to succeed.
+        uses: ./
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          summary-file: ''
+
+      - name: 2b - Then the action outcome should be failure
+        if: always()
+        run: ./test/assert-values-match.sh --name "step outcome" --expected "failure" --actual "${{ steps.missing-summary-file.outcome }}"
+
+      - name: 2c - And each of the outputs should be empty
+        if: always()
+        run: |
+          ./test/assert-value-is-empty.sh --name "coverage-outcome output" --value "${{ steps.missing-summary-file.outputs.coverage-outcome }}"
+          ./test/assert-value-is-empty.sh --name "coverage-results-truncated output" --value "${{ steps.missing-summary-file.outputs.coverage-results-truncated }}"
+          ./test/assert-value-is-empty.sh --name "coverage-results-file-path output" --value "${{ steps.missing-summary-file.outputs.coverage-results-file-path }}"
+          ./test/assert-value-is-empty.sh --name "status-check-id output" --value "${{ steps.missing-summary-file.outputs.status-check-id }}"
+          ./test/assert-value-is-empty.sh --name "pr-comment-id output" --value "${{ steps.missing-summary-file.outputs.pr-comment-id }}"
+
+      - name: '-------------------------------------------------------------------------------------------------------------'
+        run: echo ""
+      - name: '                                     TEST 3 - SUMMARY_FILE DOES NOT EXIST                                    '
+        run: echo ""
+
+      - name: 3a - When process-code-coverage-summary is called with a summary file that does not exist
+        id: file-does-not-exist
+        if: always()
+        continue-on-error: true # This is needed because we expect the step to fail but we need it to "pass" in order for the test job to succeed.
+        uses: ./
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          summary-file: './test/input-files/file-that-does-not-exist.md'
+          create-status-check: false
+          create-pr-comment: false
+
+      - name: 3b - Then the action outcome should be failure
+        if: always()
+        run: ./test/assert-values-match.sh --name "step outcome" --expected "failure" --actual "${{ steps.file-does-not-exist.outcome }}"
+
+      - name: 3c - And the 'coverage-outcome' output should be Failed
+        if: always()
+        run: |
+          ./test/assert-values-match.sh --name "coverage-outcome output" --expected 'Failed' --actual "${{ steps.file-does-not-exist.outputs.coverage-outcome }}"
+
+      - name: 3d - And the remaining outputs should be empty
+        if: always()
+        run: |
+          ./test/assert-value-is-empty.sh --name "coverage-results-truncated output" --value "${{ steps.file-does-not-exist.outputs.coverage-results-truncated }}"
+          ./test/assert-value-is-empty.sh --name "coverage-results-file-path output" --value "${{ steps.file-does-not-exist.outputs.coverage-results-file-path }}"
+          ./test/assert-value-is-empty.sh --name "status-check-id output" --value "${{ steps.file-does-not-exist.outputs.status-check-id }}"
+          ./test/assert-value-is-empty.sh --name "pr-comment-id output" --value "${{ steps.file-does-not-exist.outputs.pr-comment-id }}"
+
+      - name: '-------------------------------------------------------------------------------------------------------------'
+        run: echo ""
+      - name: '                                       TEST 4 - SUMMARY_FILE IS EMPTY                                        '
+        run: echo ""
+
+      - name: 4a - When process-code-coverage-summary is called with a summary file that is empty
+        id: empty-file
+        if: always()
+        uses: ./
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          summary-file: '${{ env.EMPTY_SUMMARY_INPUT_FILE }}'
+          create-status-check: false
+          create-pr-comment: false
+          ignore-threshold-failures: false
+          line-threshold: 50
+          branch-threshold: 50
+
+      - name: 4b - Then the action outcome should be success
+        if: always()
+        run: ./test/assert-values-match.sh --name "step outcome" --expected "success" --actual "${{ steps.empty-file.outcome }}"
+
+      - name: 4c - And the 'coverage-outcome' output should be Failed
+        if: always()
+        run: |
+          ./test/assert-values-match.sh --name "coverage-outcome output" --expected 'Failed' --actual "${{ steps.empty-file.outputs.coverage-outcome }}"
+
+      - name: 4d - And the remaining outputs should be empty
+        if: always()
+        run: |
+          ./test/assert-value-is-empty.sh --name "coverage-results-truncated output" --value "${{ steps.empty-file.outputs.coverage-results-truncated }}"
+          ./test/assert-value-is-empty.sh --name "coverage-results-file-path output" --value "${{ steps.empty-file.outputs.coverage-results-file-path }}"
+          ./test/assert-value-is-empty.sh --name "status-check-id output" --value "${{ steps.empty-file.outputs.status-check-id }}"
+          ./test/assert-value-is-empty.sh --name "pr-comment-id output" --value "${{ steps.empty-file.outputs.pr-comment-id }}"
+
+      - name: '-------------------------------------------------------------------------------------------------------------'
+        run: echo ""
+      - name: '                                         TEST 5 - PASSING THRESHOLDS                                         '
+        run: echo ""
+
+      - name: 5a - When process-code-coverage-summary is called with a summary file that exceeds the threshold
+        id: passing-thresholds
+        if: always()
+        uses: ./
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          summary-file: '${{ env.COVERAGE_SUMMARY_INPUT_FILE }}'
+          create-status-check: false
+          create-pr-comment: false
+          report-name: 'Passing Coverage'
+          line-threshold: 90 # The actual coverage is 94.4
+          branch-threshold: 90 # The actual coverage is 93.8
+          ignore-threshold-failures: false
+
+      - name: 5b - Then the action outcome should be success
+        if: always()
+        run: ./test/assert-values-match.sh --name "step outcome" --expected "success" --actual "${{ steps.passing-thresholds.outcome }}"
+
+      - name: 5c - And the 'coverage-outcome' output should be Passed
+        if: always()
+        run: |
+          ./test/assert-values-match.sh --name "coverage-outcome output" --expected 'Passed' --actual "${{ steps.passing-thresholds.outputs.coverage-outcome }}"
+
+      - name: 5d - And the 'coverage-results-file-path output' should be populated
+        if: always()
+        run: ./test/assert-value-is-not-empty.sh --name "coverage-results-file-path output" --value "${{ steps.passing-thresholds.outputs.coverage-results-file-path }}"
+
+      - name: 5e - And the remaining outputs should be empty since status checks and pr comments were not created
+        if: always()
+        run: |
+          ./test/assert-value-is-empty.sh --name "status-check-id output" --value "${{ steps.passing-thresholds.outputs.status-check-id }}"
+          ./test/assert-value-is-empty.sh --name "pr-comment-id output" --value "${{ steps.passing-thresholds.outputs.pr-comment-id }}"
+          ./test/assert-value-is-empty.sh --name "coverage-results-truncated output" --value "${{ steps.passing-thresholds.outputs.coverage-results-truncated }}"
+
+      - name: 5f - And the contents of coverage-results.md file should match the contents of ${{ env.PASSING_THRESHOLDS_MD_FILE }} file
+        if: always()
+        run: |
+          # Comparing the coverage-results.md file will ensure that:
+          #  - The provided report name is used
+          #  - The badges have the right count/status/color
+          #  - The details of the summary.md file are included
+
+          expectedFileName="${{ env.PASSING_THRESHOLDS_MD_FILE }}"
+          actualFileName="${{ steps.passing-thresholds.outputs.coverage-results-file-path }}"
+          ./test/assert-file-contents-match.sh --expectedFileName $expectedFileName --actualFileName $actualFileName
+
+      - name: '-------------------------------------------------------------------------------------------------------------'
+        run: echo ""
+      - name: '                      TEST 6 - FAILING LINE THRESHOLD & IGNORE-THRESHOLD-FAILURES=FALSE                      '
+        run: echo ""
+
+      - name: 6a - When process-code-coverage-summary is called with a line coverage below the threshold
+        id: failing-line
+        if: always()
+        uses: ./
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          summary-file: '${{ env.COVERAGE_SUMMARY_INPUT_FILE }}'
+          create-status-check: false
+          create-pr-comment: false
+          report-name: 'Line Threshold Failure'
+          line-threshold: 99 # The actual coverage is 94.4
+          branch-threshold: 50 # The actual coverage is 93.8
+          ignore-threshold-failures: false
+
+      - name: 6b - Then the action outcome should be success
+        if: always()
+        run: ./test/assert-values-match.sh --name "step outcome" --expected "success" --actual "${{ steps.failing-line.outcome }}"
+
+      - name: 6c - And the 'coverage-outcome' output should be Failed
+        if: always()
+        run: |
+          ./test/assert-values-match.sh --name "coverage-outcome output" --expected 'Failed' --actual "${{ steps.failing-line.outputs.coverage-outcome }}"
+
+      - name: 6d - And the 'coverage-results-file-path output' should be populated
+        if: always()
+        run: ./test/assert-value-is-not-empty.sh --name "coverage-results-file-path output" --value "${{ steps.failing-line.outputs.coverage-results-file-path }}"
+
+      - name: 6e - And the remaining outputs should be empty since status checks and pr comments were not created
+        if: always()
+        run: |
+          ./test/assert-value-is-empty.sh --name "status-check-id output" --value "${{ steps.failing-line.outputs.status-check-id }}"
+          ./test/assert-value-is-empty.sh --name "pr-comment-id output" --value "${{ steps.failing-line.outputs.pr-comment-id }}"
+          ./test/assert-value-is-empty.sh --name "coverage-results-truncated output" --value "${{ steps.failing-line.outputs.coverage-results-truncated }}"
+
+      - name: 6f - And the contents of coverage-results.md file should match the contents of ${{ env.FAILING_LINE_MD_FILE }} file
+        if: always()
+        run: |
+          # Comparing the coverage-results.md file will ensure that:
+          #  - The provided report name is used
+          #  - The badges have the right count/status/color
+          #  - The details of the summary.md file are included
+
+          expectedFileName="${{ env.FAILING_LINE_MD_FILE }}"
+          actualFileName="${{ steps.failing-line.outputs.coverage-results-file-path }}"
+          ./test/assert-file-contents-match.sh --expectedFileName $expectedFileName --actualFileName $actualFileName
+
+      - name: '-------------------------------------------------------------------------------------------------------------'
+        run: echo ""
+      - name: '                     TEST 7 - FAILING BRANCH THRESHOLD & IGNORE-THRESHOLD-FAILURES=FALSE                     '
+        run: echo ""
+
+      - name: 7a - When process-code-coverage-summary is called with a branch coverage below the threshold
+        id: failing-branch
+        if: always()
+        uses: ./
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          summary-file: '${{ env.COVERAGE_SUMMARY_INPUT_FILE }}'
+          create-status-check: false
+          create-pr-comment: false
+          report-name: 'Branch Threshold Failure'
+          line-threshold: 50 # The actual coverage is 94.4
+          branch-threshold: 99 # The actual coverage is 93.8
+          ignore-threshold-failures: false
+
+      - name: 7b - Then the action outcome should be success
+        if: always()
+        run: ./test/assert-values-match.sh --name "step outcome" --expected "success" --actual "${{ steps.failing-branch.outcome }}"
+
+      - name: 7c - And the 'coverage-outcome' output should be Failed
+        if: always()
+        run: |
+          ./test/assert-values-match.sh --name "coverage-outcome output" --expected 'Failed' --actual "${{ steps.failing-branch.outputs.coverage-outcome }}"
+
+      - name: 7d - And the 'coverage-results-file-path output' should be populated
+        if: always()
+        run: ./test/assert-value-is-not-empty.sh --name "coverage-results-file-path output" --value "${{ steps.failing-branch.outputs.coverage-results-file-path }}"
+
+      - name: 7e - And the remaining outputs should be empty since status checks and pr comments were not created
+        if: always()
+        run: |
+          ./test/assert-value-is-empty.sh --name "status-check-id output" --value "${{ steps.failing-branch.outputs.status-check-id }}"
+          ./test/assert-value-is-empty.sh --name "pr-comment-id output" --value "${{ steps.failing-branch.outputs.pr-comment-id }}"
+          ./test/assert-value-is-empty.sh --name "coverage-results-truncated output" --value "${{ steps.failing-branch.outputs.coverage-results-truncated }}"
+
+      - name: 7f - And the contents of coverage-results.md file should match the contents of ${{ env.FAILING_BRANCH_MD_FILE }} file
+        if: always()
+        run: |
+          # Comparing the coverage-results.md file will ensure that:
+          #  - The provided report name is used
+          #  - The badges have the right count/status/color
+          #  - The details of the summary.md file are included
+
+          expectedFileName="${{ env.FAILING_BRANCH_MD_FILE }}"
+          actualFileName="${{ steps.failing-branch.outputs.coverage-results-file-path }}"
+          ./test/assert-file-contents-match.sh --expectedFileName $expectedFileName --actualFileName $actualFileName
+
+      - name: '-------------------------------------------------------------------------------------------------------------'
+        run: echo ""
+      - name: '                        TEST 8 - FAILING THRESHOLDS & IGNORE-THRESHOLD-FAILURES=TRUE                         '
+        run: echo ""
+
+      - name: 8a - When process-code-coverage-summary is called with failing thresholds & ignore-threshold-failures=true
+        id: ignore-thresholds
+        if: always()
+        uses: ./
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          summary-file: '${{ env.COVERAGE_SUMMARY_INPUT_FILE }}'
+          create-status-check: false
+          create-pr-comment: false
+          # report-name - Test the default (Code Coverage Results)
+          line-threshold: 99 # The actual coverage is 94.4
+          branch-threshold: 99 # The actual coverage is 93.8
+          ignore-threshold-failures: true
+
+      - name: 8b - Then the action outcome should be success
+        if: always()
+        run: ./test/assert-values-match.sh --name "step outcome" --expected "success" --actual "${{ steps.ignore-thresholds.outcome }}"
+
+      - name: 8c - And the 'coverage-outcome' output should be Passed
+        if: always()
+        run: |
+          ./test/assert-values-match.sh --name "coverage-outcome output" --expected 'Passed' --actual "${{ steps.ignore-thresholds.outputs.coverage-outcome }}"
+
+      - name: 8d - And the 'coverage-results-file-path output' should be populated
+        if: always()
+        run: ./test/assert-value-is-not-empty.sh --name "coverage-results-file-path output" --value "${{ steps.ignore-thresholds.outputs.coverage-results-file-path }}"
+
+      - name: 8e - And the remaining outputs should be empty since status checks and pr comments were not created
+        if: always()
+        run: |
+          ./test/assert-value-is-empty.sh --name "status-check-id output" --value "${{ steps.ignore-thresholds.outputs.status-check-id }}"
+          ./test/assert-value-is-empty.sh --name "pr-comment-id output" --value "${{ steps.ignore-thresholds.outputs.pr-comment-id }}"
+          ./test/assert-value-is-empty.sh --name "coverage-results-truncated output" --value "${{ steps.ignore-thresholds.outputs.coverage-results-truncated }}"
+
+      - name: 8f - And the contents of coverage-results.md file should match the contents of ${{ env.IGNORE_THRESHOLDS_MD_FILE }} file
+        if: always()
+        run: |
+          # Comparing the coverage-results.md file will ensure that:
+          #  - The default report name is used (Code Coverage Results)
+          #  - The badges have the right count/status/color
+          #  - The details of the summary.md file are included
+
+          expectedFileName="${{ env.IGNORE_THRESHOLDS_MD_FILE }}"
+          actualFileName="${{ steps.ignore-thresholds.outputs.coverage-results-file-path }}"
+          ./test/assert-file-contents-match.sh --expectedFileName $expectedFileName --actualFileName $actualFileName
+
+      - name: '-------------------------------------------------------------------------------------------------------------'
+        run: echo ""
+      - name: '                                            TEST 9 - THRESHOLD=0                                             '
+        run: echo ""
+
+      - name: 9a - When process-code-coverage-summary is called with thresholds set to 0
+        id: threshold-0
+        if: always()
+        uses: ./
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          summary-file: '${{ env.COVERAGE_SUMMARY_INPUT_FILE }}'
+          create-status-check: false
+          create-pr-comment: false
+          # report-name - Test the default (Code Coverage Results)
+          line-threshold: 0 # The actual coverage is 94.4
+          branch-threshold: 0 # The actual coverage is 93.8
+          ignore-threshold-failures: false
+
+      - name: 9b - Then the action outcome should be success
+        if: always()
+        run: ./test/assert-values-match.sh --name "step outcome" --expected "success" --actual "${{ steps.threshold-0.outcome }}"
+
+      - name: 9c - And the 'coverage-outcome' output should be Passed
+        if: always()
+        run: |
+          ./test/assert-values-match.sh --name "coverage-outcome output" --expected 'Passed' --actual "${{ steps.threshold-0.outputs.coverage-outcome }}"
+
+      - name: 9d - And the 'coverage-results-file-path output' should be populated
+        if: always()
+        run: ./test/assert-value-is-not-empty.sh --name "coverage-results-file-path output" --value "${{ steps.threshold-0.outputs.coverage-results-file-path }}"
+
+      - name: 9e - And the remaining outputs should be empty since status checks and pr comments were not created
+        if: always()
+        run: |
+          ./test/assert-value-is-empty.sh --name "status-check-id output" --value "${{ steps.threshold-0.outputs.status-check-id }}"
+          ./test/assert-value-is-empty.sh --name "pr-comment-id output" --value "${{ steps.threshold-0.outputs.pr-comment-id }}"
+          ./test/assert-value-is-empty.sh --name "coverage-results-truncated output" --value "${{ steps.threshold-0.outputs.coverage-results-truncated }}"
+
+      - name: 9f - And the contents of coverage-results.md file should match the contents of ${{ env.THRESHOLD_0_MD_FILE }} file
+        if: always()
+        run: |
+          # Comparing the coverage-results.md file will ensure that:
+          #  - The default report name is used (Code Coverage Results)
+          #  - The badges have the right count/status/color
+          #  - The details of the summary.md file are included
+
+          expectedFileName="${{ env.THRESHOLD_0_MD_FILE }}"
+          actualFileName="${{ steps.threshold-0.outputs.coverage-results-file-path }}"
+          ./test/assert-file-contents-match.sh --expectedFileName $expectedFileName --actualFileName $actualFileName
