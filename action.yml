@@ -12,14 +12,16 @@ inputs:
     description: 'The desired name of the report that is shown on the PR Comment and inside the Status Check.'
     required: true
     default: Code Coverage Results
-  check-name:
-    description: 'The desired name of the status check.'
-    required: true
-    default: code coverage
   create-status-check:
     description: 'Flag indicating whether a status check with code coverage results should be generated.'
     required: true
     default: 'true'
+  check-name:
+    description: |
+      The desired name of the status check.
+      *Only applicable when `create-status-check` is true.*
+    required: true
+    default: code coverage
   create-pr-comment:
     description: 'Flag indicating whether a PR comment with code coverage results should be generated.  When `true` the default behavior is to update an existing comment if one exists.'
     required: true
@@ -37,25 +39,26 @@ inputs:
       This can be helpful when there are multiple coverage projects that run separately but are part of the same job.
       Each instance of the action should have a different key and this value should be static so it remains the same each time the workflow is run.
       Defaults to GITHUB_JOB_GITHUB_ACTION if not provided.
-      *Only applicable when `create-pr-comment` is true.*
+      *Only applicable when `create-pr-comment` and `update-comment-if-one-exists` are `true`.*
     required: false
-  ignore-threshold-failures: # TODO:  this needs clarification
+  ignore-threshold-failures:
     description: |
-      When set to true the check status is set to Neutral when the code coverage percentage is below the 
-      specified threshold and it will not block pull requests.
+      If the coverage falls below the threshold and this is set to `true` the status check's conclusion will be set to `neutral`
+      and the `coverage-outcome` output will be set to `Passed`.
+      This is useful if you want coverage reported but do not want a failing status check to block pull requests.
     required: false
-    default: 'false' 
-  line-threshold: # TODO:  this needs clarification
+    default: 'false'
+  line-threshold:
     description: |
-      Threshold for line coverage. 
-      The status check/comment will be marked as a failure if the actual line coverage amount is less than this.  
-      Set to 0 if you do not want thresholds to be applied.
+      Minimum threshold for line coverage. 
+      The status check conclusion will be `failure `and `coverage-outcome` will be `Failed` if the actual coverage amount is less than this.
+      Set to `0` to disable line coverage checks. When `0`, the status check will always be `neutral` and the `coverage-outcome` will be `Passed`.
     required: false
     default: '0'
-  branch-threshold: # TODO:  this needs clarification
+  branch-threshold:
     description: |
-      Threshold for branch coverage.  
-      The status check/comment will be marked as a failure if the actual branch coverage amount is less than this.  
+      Minimum threshold for branch coverage.
+      The status check conclusion will be `failure `and `coverage-outcome` will be `Failed` if the actual coverage amount is less than this.
       Set to 0 if you do not want thresholds to be applied.
     required: false
     default: '0'
@@ -73,5 +76,5 @@ outputs:
     description: 'The ID of the PR comment that was created.  This is only set if `create-pr-comment` is `true` and a PR was created successfully.'
 
 runs:
-  using: 'node16'
+  using: 'node20'
   main: 'dist/index.js'
