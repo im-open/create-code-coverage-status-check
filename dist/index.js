@@ -16857,7 +16857,7 @@ Creating a PR comment with length ${markdownResults.length}...`);
 ${mdForPrComment.substring(0, characterLimit - 100)}`;
       }
       core.setOutput('coverage-results-truncated', truncated);
-      const commentId = await createPrComment(markdownResults, updateCommentIfOneExists, commentIdentifier);
+      const commentId = await createPrComment(mdForPrComment, updateCommentIfOneExists, commentIdentifier);
       core.setOutput('pr-comment-id', commentId);
     }
     const resultsFilePath = createResultsFile(markdownResults, jobAndStep);

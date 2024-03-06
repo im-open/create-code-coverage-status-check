@@ -231,7 +231,7 @@ function getIndividualCoverageInfo(summaryInputData, coverageType, threshold, ig
       infoToReturn.conclusion = ignoreFailures ? 'neutral' : 'failure';
     }
 
-    infoToReturn.badge = getBadge(infoToReturn.conclusion); // success = PASSED, everything else = FAILED
+    infoToReturn.badge = getBadge(infoToReturn.conclusion);
   }
 
   return infoToReturn;
@@ -274,7 +274,7 @@ async function run() {
 
     // |Scenario:                            | check conclusion | badge  | coverage-outcome |
     // |-------------------------------------|------------------|--------|------------------|
-    // |threshold=0                          | neutral          | FAILED | Passed           |
+    // |threshold=0                          | neutral          | N/A    | Passed           |
     // |actual < threshold & !ignoreFailures | failure          | FAILED | Failed           |
     // |actual < threshold & ignoreFailures  | neutral          | FAILED | Passed           |
     // |actual >= threshold                  | success          | PASSED | Passed           |
@@ -306,7 +306,7 @@ async function run() {
       }
       core.setOutput('coverage-results-truncated', truncated);
 
-      const commentId = await createPrComment(markdownResults, updateCommentIfOneExists, commentIdentifier);
+      const commentId = await createPrComment(mdForPrComment, updateCommentIfOneExists, commentIdentifier);
       core.setOutput('pr-comment-id', commentId); // This is mainly for testing purposes
     }
 
