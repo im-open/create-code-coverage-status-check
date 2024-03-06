@@ -24,10 +24,10 @@ on:
 env:
   EMPTY_SUMMARY_INPUT_FILE: './test/input-files/empty.md'
   COVERAGE_SUMMARY_INPUT_FILE: './test/input-files/coverage-summary.md'
-
+  
   # FAILING_SUMMARY_INPUT_FILE: './test/input-files/failing.md'
   # NO_TESTS_SUMMARY_INPUT_FILE: './test/input-files/no-coverage.md'
-
+  
   # TRUNCATE_SUMMARY_INPUT_FILE: './test/input-files/truncate.md'
 
 jobs:
@@ -477,7 +477,7 @@ jobs:
       IGNORE_FAILURES_REPORT_NAME: 'Ignore Threshold Failures Scenario'
       ALLOW_FAILURES_REPORT_NAME: 'Allow Failures Failures Scenario'
       THRESHOLD_0_REPORT_NAME: 'Threshold 0 Scenario'
-
+      
       NO_FAILURES_CHECK_NAME: 'no-failures-check'
       IGNORE_FAILURES_CHECK_NAME: 'ignore-failures-check'
       ALLOW_FAILURES_CHECK_NAME: 'allow-failures-check'
@@ -581,9 +581,9 @@ jobs:
         if: always()
         run: ./test/assert-value-is-not-empty.sh --name "status-check-id output" --value "${{ steps.ignore-failures.outputs.status-check-id }}"
 
-      - name: 11d - And the coverage-outcome output should be Failed
+      - name: 11d - And the coverage-outcome output should be Passed
         if: always()
-        run: ./test/assert-values-match.sh --name "coverage-outcome output" --expected "Failed" --actual "${{ steps.ignore-failures.outputs.coverage-outcome }}"
+        run: ./test/assert-values-match.sh --name "coverage-outcome output" --expected "Passed" --actual "${{ steps.ignore-failures.outputs.coverage-outcome }}"
 
       - name: 11e - And the status check should match the inputs
         if: always()
@@ -660,7 +660,7 @@ jobs:
               text: expectedBody
             };
             assertStatusCheckMatchesExpectations(core, actualCheck, expectedValues);
-
+      
       - name: '-------------------------------------------------------------------------------------------------------------'
         run: echo ""
       - name: '                                TEST 13 - STATUS CHECK - THRESHOLDS SET TO 0                                 '

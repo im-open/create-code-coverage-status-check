@@ -1,7 +1,8 @@
 module.exports = async (core, statusCheck, expectedValues) => {
   function assertValuesMatch(variableName, expectedValue, actualValue, multiline) {
     if (multiline) {
-      core.startGroup(`\nExpected ${variableName}`);
+      core.info(`\nChecking ${variableName} multiline values match.`);
+      core.startGroup(`Expected ${variableName}`);
       core.info(expectedValue);
       core.endGroup();
 
