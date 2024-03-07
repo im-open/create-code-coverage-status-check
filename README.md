@@ -25,13 +25,29 @@ This action works in conjunction with [im-open/code-coverage-report-generator]. 
   
 ## Thresholds
 
-The status check can be seen as a new item on the workflow run, a PR comment or on the PR Status Check section. If thresholds for line or branch coverage have been provided and the actual branch or line coverage does not meet or exceed the threshold, the status check will be marked as `failed`.  Having the status check marked as `failed` will prevent PRs from being merged.  If this status check behavior is not desired, the `ignore-threshold-failures` input can be set and the outcome will be marked as `neutral` if threshold failures are detected.  The status badge that is shown in the comment or status check body will still indicate it was a failure though.
+The coverage status & action's conclusion can be viewed in multiple places:
 
-If you want the code coverage to be reported without indicating whether it was a success or failure, leave the `line-threshold` and `branch-threshold` inputs as their default 0.
+- In the body of a PR comment this action generates
+- Next to the name of one of the status checks under the `Checks` section of a PR
+- Next to the name of one of the status checks under the `Jobs` section of the workflow run
+- In the body of a status check listed on the workflow run
+
+If thresholds for line or branch coverage have been provided and the actual branch or line coverage does not meet or exceed the threshold, the status check will be marked as `failed`.  Having the status check marked as `failed` will prevent PRs from being merged.  If this status check behavior is not desired, the `ignore-threshold-failures` input can be set and the outcome will be marked as `neutral` if threshold failures are detected.  The status badge that is shown in the comment or status check body will still indicate it was a failure though.
+
+If you want the code coverage to be reported without indicating whether it was a success or failure, leave the `line-threshold` and `branch-threshold` inputs as the default `0`.
+
+There are several factors will contribute to the final disposition:
+
+| Scenario:                                      | `ignore-threshold-`<br/>`failures` input | status check<br/>conclusion | `coverage-outcome`<br/>output | PR Comment or<br/>Status Check<br/>Results Badge |
+|------------------------------------------------|------------------------------------------|-----------------------------|-------------------------------|--------------------------------------------------|
+| `line-threshold:0`<br/>or `branch-threshold:0` | `true` or `false`                        | `neutral`                   | `Passed`                      | N/A                                              |
+| actualCoverage < threshold                     | `false`                                  | `failure`                   | `Failed`                      | `FAILED`                                         |
+| actualCoverage < threshold                     | `true`                                   | `neutral`                   | `Passed`                      | `FAILED`                                         |
+| actualCoverage >= threshold                    | `true` or `false`                        | `success`                   | `Passed`                      | `PASSED`                                         |
 
 ## Limitations
 
-GitHub does have a size limitation of 65535 characters for a Status Check body or a PR Comment.  This action will fail if the contents of the summary file exceed the GitHub [limit].
+GitHub does have a size limitation of 65535 characters for a Status Check body or a PR Comment. This action would fail if the test results exceeded the GitHub [limit]. To mitigate this size issue, only details for failed tests are included in the output in addition to a badge, duration info and outcome info. If the comment still exceeds that size, it will be truncated with a note to see the remaining output in the log.
 
 If you have multiple workflows triggered by the same `pull_request` or `push` event, GitHub creates one checksuite for that commit.  The checksuite gets assigned to one of the workflows randomly and all status checks for that commit are reported to that checksuite. That means if there are multiple workflows with the same trigger, your status checks may show on a different workflow run than the run that created them.
 
@@ -59,25 +75,29 @@ If the `Code Coverage Details` in the Status Check body or PR Comment are expand
 
 ## Inputs
 
-| Parameter                      | Is Required | Default               | Description                                                                                                                                                                                                                                                                                                                                                              |
-|--------------------------------|-------------|-----------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `github-token`                 | true        | N/A                   | The GitHub token for interacting with the repository.                                                                                                                                                                                                                                                                                                                    |
-| `summary-file`                 | true        | N/A                   | The summary file generated by the report-generator action.                                                                                                                                                                                                                                                                                                               |
-| `report-name`                  | false       | Code Coverage Results | The desired name of the report that is shown on the PR Comment and inside the Status Check.                                                                                                                                                                                                                                                                              |
-| `check-name`                   | false       | code coverage         | The desired name of the status check.                                                                                                                                                                                                                                                                                                                                    |
-| `create-status-check`          | false       | true                  | Flag indicating whether a status check with code coverage results should be generated.                                                                                                                                                                                                                                                                                   |
-| `create-pr-comment`            | false       | true                  | Flag indicating whether a PR comment with code coverage results should be generated.  When `true` the default behavior is to update an existing comment if one exists.                                                                                                                                                                                                   |
-| `update-comment-if-one-exists` | false       | true                  | When `create-pr-comment` is true, this flag determines whether a new comment is created or if the action updates an existing comment if one is found which is the default behavior.                                                                                                                                                                                      |
-| `update-comment-key`           | false       | N/A                   | A simple alphanumeric string like *dotnet* or *jest* used to further identify the PR comment to update when this action is used more than once in a workflow.  Only used when `update-comment-if-one-exists` is set to true.  Each instance of the action should have a different key. This value should be static so it remains the same each time the workflow is run. |
-| `ignore-threshold-failures`    | false       | false                 | When set to true the check status is set to `neutral` when the code coverage percentage is below the specified threshold and it will not block pull requests.                                                                                                                                                                                                            |
-| `line-threshold`               | false       | 0                     | The status check/comment will be marked as a failure if the actual line coverage amount is less than this.  Set to 0 if you do not want thresholds to be applied.                                                                                                                                                                                                        |
-| `branch-threshold`             | false       | 0                     | The status check/comment will be marked as a failure if the actual branch coverage amount is less than this.  Set to 0 if you do not want thresholds to be applied.                                                                                                                                                                                                      |
+| Parameter                      | Is Required | Default                                             | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+|--------------------------------|-------------|-----------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `github-token`                 | true        | N/A                                                 | Token used to interact with the repository. Generally `secrets.GITHUB_TOKEN.`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `summary-file`                 | true        | N/A                                                 | The summary file generated by the report-generator action.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `report-name`                  | false       | `Code Coverage Results`                             | The desired name of the report that is shown on the PR Comment and inside the Status Check.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `create-status-check`          | false       | `true`                                              | Flag indicating whether a status check with code coverage results should be generated.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `check-name`                   | false       | `code coverage`                                     | The desired name of the status check.<br/><br/>*Only applicable when `create-status-check` is true.*                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `create-pr-comment`            | false       | `true`                                              | Flag indicating whether a PR comment with code coverage results should be generated.  When `true` the default behavior is to update an existing comment if one exists.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `update-comment-if-one-exists` | false       | `true`                                              | This flag determines whether a new comment is created or if the action updates an existing comment (*if one is found*).<br/><br/>*Only applicable when `create-pr-comment` is true.*                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `update-comment-key`           | false       | `${{env.GITHUB-JOB}}_`<br/>`${{env.GITHUB-ACTION}}` | A unique identifier which will be added to the generated markdown as a comment (*it will not be visible in the PR comment*).<br/><br/>This identifier enables creating then updating separate results comments on the PR if more than one instance of this action is included in a single job. This can be helpful when there are multiple coverage projects that run separately but are part of the same job. Each instance of the action should have a different key and this value should be static so it remains the same each time the workflow is run.<br/><br/>*Only applicable when `create-pr-comment` and `update-comment-if-one-exists` are true.* |
+| `ignore-threshold-failures`    | false       | `false`                                             | If the coverage falls below the threshold and this is set to `true` the status check's conclusion will be set to `neutral` and the `coverage-outcome` output will be set to `Passed`.<br/><br/>This is useful if you want coverage reported but do not want a failing status check to block pull requests.                                                                                                                                                                                                                                                                                                                                                    |
+| `line-threshold`               | false       | `0`                                                 | Minimum threshold for line coverage. The status check conclusion will be `failure`and `coverage-outcome` will be `Failed` if the actual coverage amount is less than this.<br/><br/>Set to `0` to disable line coverage checks. When `0`, the status check will always be `neutral` and the `coverage-outcome` will be `Passed`.                                                                                                                                                                                                                                                                                                                              |
+| `branch-threshold`             | false       | `0`                                                 | Minimum threshold for branch coverage. The status check conclusion will be `failure`and `coverage-outcome` will be `Failed` if the actual coverage amount is less than this.<br/><br/>Set to `0` to disable branch coverage checks. When `0`, the status check will always be `neutral` and the `coverage-outcome` will be `Passed`.                                                                                                                                                                                                                                                                                                                          |
 
 ## Outputs
 
-| Output             | Description                                                                                                                                                                                                                            |
-|--------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `coverage-outcome` | Coverage outcome based on Threshold comparisons: *Failed,Passed* <br/>If exceptions are thrown or if it exits early because of argument errors, this is set to *Failed*.<br/>If thresholds are set to 0, this will be set to *Passed*. |
+| Output                       | Description                                                                                                                                                                                                                            |
+|------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `coverage-outcome`           | Coverage outcome based on Threshold comparisons: *Failed,Passed* <br/>If exceptions are thrown or if it exits early because of argument errors, this is set to *Failed*.<br/>If thresholds are set to 0, this will be set to *Passed*. |
+| `coverage-results-truncated` | Flag indicating whether coverage results were truncated due to markdown exceeding character limit of 65535.                                                                                                                            |
+| `coverage-results-file-path` | File path for the file that contains the coverage results in markdown format.  This is the same output that is posted in the PR comment.                                                                                               |
+| `status-check-id`            | The ID of the Status Check that was created.  This is only set if `create-status-check` is `true` and a status check was created successfully.                                                                                         |
+| `pr-comment-id`              | The ID of the PR comment that was created.  This is only set if `create-pr-comment` is `true` and a PR was created successfully.                                                                                                       |
 
 ## Usage Examples
 
@@ -93,11 +113,11 @@ jobs:
     runs-on: [ubuntu-20.04]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       # dotnet tests
       - name: Setup .NET Core
-        uses: actions/setup-dotnet@v1
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
@@ -117,7 +137,7 @@ jobs:
       - name: Create a status check for the code coverage results
         id: dotnet-coverage-check
         # You may also reference just the major or major.minor version
-        uses: im-open/process-code-coverage-summary@v2.2.3
+        uses: im-open/process-code-coverage-summary@v2.3.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}     
           summary-file: './coverage-results/dotnet-summary.md'
@@ -138,7 +158,7 @@ jobs:
         run: npm run test -- --outputFile=jest-results.json
 
       - name: create code coverage report
-        uses: im-open/code-coverage-report-generator@4.9.0
+        uses: im-open/code-coverage-report-generator@4
         with:
           reports: '*/**/lcov.info'
           targetdir: ./tests
@@ -146,7 +166,7 @@ jobs:
 
       - name: create status check/comment for code coverage results
         id: jest_coverage_check
-        uses: im-open/process-code-coverage-summary@v2.2.3
+        uses: im-open/process-code-coverage-summary@v2.3.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           summary-file: './coverage-results/jest-summary.md'
@@ -209,7 +229,7 @@ This project has adopted the [im-open's Code of Conduct](https://github.com/im-o
 
 ## License
 
-Copyright &copy; 2023, Extend Health, LLC. Code released under the [MIT license](LICENSE).
+Copyright &copy; 2024, Extend Health, LLC. Code released under the [MIT license](LICENSE).
 
 <!-- Links -->
 [Incrementing the Version]: #incrementing-the-version
@@ -222,4 +242,3 @@ Copyright &copy; 2023, Extend Health, LLC. Code released under the [MIT license]
 [esbuild]: https://esbuild.github.io/getting-started/#bundling-for-node
 [git-version-lite]: https://github.com/im-open/git-version-lite
 [im-open/code-coverage-report-generator]: https://github.com/im-open/code-coverage-report-generator
-[limit]: https://github.com/github/docs/issues/3765
