@@ -223,7 +223,7 @@ function getIndividualCoverageInfo(summaryInputData, coverageType, threshold, ig
   }
 
   const itemFound = summaryInputData.match(regex);
-  infoToReturn.actualCoverage = itemFound && itemFound[1] ? parseInt(itemFound[1]) : 0;
+  infoToReturn.actualCoverage = itemFound && itemFound[1] ? parseFloat(itemFound[1]) : 0;
   if (infoToReturn.threshold === 0) {
     infoToReturn.conclusion = 'neutral';
   } else {
